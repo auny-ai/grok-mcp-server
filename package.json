@@ -1,0 +1,23 @@
+{
+  "name": "grok-mcp-server",
+  "version": "1.0.0",
+  "description": "Remote MCP server exposing xAI Grok x_search, web_search, and chat tools. Hosted on Cloudflare Workers.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "types": "wrangler types"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.10.0",
+    "agents": "^0.12.3",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240829.0",
+    "typescript": "^5.5.4",
+    "wrangler": "^4.0.0"
+  }
+}

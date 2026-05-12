@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "grok-mcp-server",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["GrokMCP"]
+    },
+    {
+      "tag": "v2",
+      "deleted_classes": ["GrokMCP"]
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}
