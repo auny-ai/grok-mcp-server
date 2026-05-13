@@ -1,10 +1,10 @@
 # grok-mcp-server
 
-A remote MCP server that gives any Claude (or any MCP-compatible AI) access to xAI Grok's live X (Twitter) search, web search, and chat — from anywhere. Your laptop, your phone, an automated routine running while you sleep.
+A remote MCP server that gives any Claude (or any MCP-compatible AI) access to xAI Grok's full surface area — live X (Twitter) search, web search, chat, image generation, vision, image editing, video generation, structured outputs, and reasoning — from anywhere. Your laptop, your phone, an automated routine running while you sleep.
 
 Whether you're a developer building agents, an automation tinkerer wiring up workflows, or a creator who wants real-time data inside Claude — this is the same install.
 
-Hosted on your own Cloudflare account. 4 commands. Stateless. ~150 lines of code.
+Hosted on your own Cloudflare account. 4 commands. Stateless. **9 tools.**
 
 Built as part of [auny-ai/claude-os](https://github.com/auny-ai/claude-os) — a multi-AI operating system being built in public. 🧡
 
@@ -12,21 +12,51 @@ Built as part of [auny-ai/claude-os](https://github.com/auny-ai/claude-os) — a
 
 ## What it does
 
-Three tools, all wrapping xAI's `/v1/responses` endpoint. Each tool is general-purpose — the use cases below are just examples of what's possible.
+Nine tools, all wrapping xAI's API. Each tool is general-purpose — the use cases below are just examples of what's possible.
 
-### `x_search` — Real-time X (Twitter) data
+### Search + chat
+
+#### `x_search` — Real-time X (Twitter) data
 
 Searches X via xAI's native x_search backend. Returns posts with author handles, follower counts, engagement metrics (likes, retweets, replies, views), timestamps, embedded media, and quote-tweet context.
 
 Supports the full X advanced search operator set: `min_faves:N`, `min_retweets:N`, `filter:blue_verified`, `filter:verified`, `from:user`, `lang:en`, `since:YYYY-MM-DD`, and the rest.
 
-### `grok_web_search` — Live web search with current information
+#### `grok_web_search` — Live web search with current information
 
 General web search via Grok, with results synthesized into a coherent answer plus sources. Updated continuously — not subject to a model knowledge cutoff.
 
-### `grok_chat` — Grok as a model, not just a search tool
+#### `grok_chat` — Grok as a model, not just a search tool
 
 Plain text completion with Grok directly. Optional system prompt and model override. Useful when you want Grok's reasoning style or voice — not Claude's — for a specific output.
+
+### Vision + media
+
+#### `grok_image_generate` — Text-to-image generation
+
+Generate images from a text prompt using Grok Imagine (Quality Mode). Returns image URL(s). Good for mockups, social cards, thumbnails, brand visuals, and A/B variants. Up to 4 variations per call.
+
+#### `grok_image_understand` — Multimodal vision
+
+Pass an image URL and a question — get analysis back. Useful for screenshot debugging, content audits, alt-text generation, design feedback, and visual triage.
+
+#### `grok_image_edit` — Text-prompt image editing
+
+Pass an existing image URL and a description of the change — get an edited image back. Useful for iterating on brand visuals, generating color/style variants, and remixing existing assets.
+
+#### `grok_video_generate` — Text-to-video / image-to-video
+
+Generate short videos (up to 10 seconds, 720p) using Grok Imagine. Supports text-only prompts and image-to-video (start from a still). Returns the video URL. Note: video generation can take 20-60 seconds.
+
+### Structured outputs + reasoning
+
+#### `grok_structured_output` — JSON-schema-enforced responses
+
+Pass a prompt and a JSON Schema describing the expected structure. Returns parsed JSON matching the schema. Useful for reliable agent pipelines, data extraction from text, and ETL workflows where you need consistent output shape.
+
+#### `grok_reasoning` — Deep analysis mode
+
+Use Grok's reasoning mode for complex problems. Slower than `grok_chat` but produces more rigorous output. Effort level adjustable (`low`, `medium`, `high`). Good for strategy questions, multi-step analysis, debate prep, and technical reviews.
 
 ---
 
@@ -41,6 +71,9 @@ This is a general-purpose Grok wrapper that any MCP client can hit. The use case
 - **Live research inside Claude Code.** When debugging a library, pulling current GitHub issues or recent docs without leaving your terminal.
 - **Cross-model evaluation.** Pipe the same prompt to both models from inside Claude. Compare outputs in one workflow.
 - **Replace web-scraping infra.** If you have brittle Puppeteer/Playwright setups pulling X data, this replaces them with a single MCP call. xAI handles the auth, rate limits, and rendering.
+- **Reliable data extraction with `grok_structured_output`.** Define a schema once, get consistent JSON back. Drop the regex parsing.
+- **Programmatic asset generation.** Spin up test mockups, design variants, or visual placeholders mid-pipeline with `grok_image_generate`.
+- **Vision-augmented agents.** Use `grok_image_understand` to let agents reason over screenshots, design files, or live UI.
 - **Cheap real-time data layer for SaaS prototypes.** Validate a "real-time market intelligence" or "X mention monitoring" feature in a weekend before building a proper backend.
 
 ### For data, analytics, and research
@@ -49,6 +82,7 @@ This is a general-purpose Grok wrapper that any MCP client can hit. The use case
 - **Track regulatory, policy, or industry developments** as they happen, not as they hit Claude's training data months later.
 - **Academic research on social discourse** — pull real-time data on how a topic is being discussed without writing a Twitter API client.
 - **Competitive intelligence pipelines** — track competitor releases, hiring posts, customer complaints, pricing changes.
+- **Structured data extraction at scale.** `grok_structured_output` reliably extracts entities, relationships, or features from unstructured text.
 
 ### For automation and ops
 
@@ -57,6 +91,7 @@ This is a general-purpose Grok wrapper that any MCP client can hit. The use case
 - **Trend detection** — surface things going viral in your niche before they peak.
 - **Lead-gen triage** — find people publicly complaining about problems your product solves.
 - **Customer support reconnaissance** — see what users are saying about your product before a support ticket exists.
+- **Auto-generate visual alerts.** Trigger a `grok_image_generate` call to make a custom thumbnail when something noteworthy happens.
 
 ### For creators
 
@@ -64,12 +99,16 @@ This is a general-purpose Grok wrapper that any MCP client can hit. The use case
 - **Quote-tweet opportunity finder** — surface high-engagement posts in your pillars worth responding to.
 - **Audience research** — see what your target audience actually talks about, not what you assume they care about.
 - **Source pulls for any output** — articles, threads, presentations — without context-switching to a browser.
+- **Visual brand workflows.** Generate banner art, social cards, post thumbnails, and video clips in one workflow without leaving Claude.
+- **Design feedback in chat.** Drop a screenshot via `grok_image_understand` and ask "what's wrong with this design?" — get specific notes.
+- **Multi-step content production:** `grok_web_search` → research, `grok_chat` → draft, `grok_image_generate` → visual, `grok_video_generate` → clip. One pipeline, one chat.
 
 ### For everyone
 
 - **Get current info into Claude.** Anything that happened after Claude's knowledge cutoff is reachable through this — without leaving your Claude chat.
 - **Fact-check Claude's outputs** against live web data.
 - **Cross-reference claims** with both web sources and live X discussion.
+- **Generate visuals you can actually use** — Grok Imagine Quality Mode produces production-ready images.
 
 ---
 
@@ -85,7 +124,7 @@ This is a general-purpose Grok wrapper that any MCP client can hit. The use case
 
 This repo doesn't bill you for anything. You're deploying your own copy of the server, paying xAI directly for Grok usage, and paying Cloudflare nothing for typical use.
 
-- **xAI**: you pay xAI for Grok API calls, billed to whatever payment method is on your xAI account ([console.x.ai](https://console.x.ai/))
+- **xAI**: you pay xAI for Grok API calls, billed to whatever payment method is on your xAI account ([console.x.ai](https://console.x.ai/)). Image and video generation are more expensive than text — check pricing before automating high-volume creative workflows.
 - **Cloudflare**: Workers free tier = 100k requests/day, more than you'll hit
 - **Me**: zero — no telemetry, no proxying, no relay. The code runs on your account, your key, your bill.
 
@@ -126,7 +165,7 @@ Sanity check:
 curl https://grok-mcp-server.<your-account>.workers.dev/
 ```
 
-Should return JSON listing the three tools.
+Should return JSON listing the nine tools.
 
 ---
 
@@ -139,7 +178,7 @@ Should return JSON listing the three tools.
 3. URL: `https://grok-mcp-server.<your-account>.workers.dev/mcp`
 4. Save
 
-The three tools are now available to any chat or Routine where you enable the Grok connector.
+The nine tools are now available to any chat or Routine where you enable the Grok connector.
 
 ### In Claude Desktop / Claude Code
 
@@ -191,6 +230,88 @@ Plain text Grok completion.
 - `system` (string, optional) — system prompt
 - `model` (string, optional) — model override (default: `grok-4.3`)
 
+### `grok_image_generate`
+
+Generate images from a text prompt.
+
+**Inputs:**
+- `prompt` (string, required) — description of the image
+- `n` (integer 1-4, optional) — number of variations (default: 1)
+- `model` (string, optional) — model override (default: `grok-imagine-image-quality`)
+
+**Returns:** image URL(s). For multiple, returns a numbered list.
+
+**Example call:**
+> use grok_image_generate to make a cyberpunk-style poster of a black cat sitting on a glowing keyboard, n=2
+
+### `grok_image_understand`
+
+Analyze an image using Grok's vision capabilities.
+
+**Inputs:**
+- `image_url` (string, required) — URL of the image (jpg, jpeg, or png)
+- `prompt` (string, required) — what you want to know about it
+- `model` (string, optional) — model override (default: `grok-4.3`)
+
+**Example call:**
+> use grok_image_understand on https://example.com/dashboard.png — what UX issues do you see?
+
+### `grok_image_edit`
+
+Edit an existing image via a text prompt.
+
+**Inputs:**
+- `image_url` (string, required) — URL of the source image
+- `prompt` (string, required) — description of the edit
+- `model` (string, optional) — model override (default: `grok-imagine-image-quality`)
+
+**Returns:** edited image URL.
+
+**Example call:**
+> use grok_image_edit on https://example.com/banner.jpg — change the background to a sunset and add a small moon in the upper right
+
+### `grok_video_generate`
+
+Generate a short video (up to 10 seconds, 720p) from text or an image.
+
+**Inputs:**
+- `prompt` (string, required) — description of the video
+- `image_url` (string, optional) — starting image for image-to-video
+- `model` (string, optional) — model override (default: `grok-imagine-video`)
+
+**Returns:** video URL. Note: generation typically takes 20-60 seconds.
+
+**Example call:**
+> use grok_video_generate with the prompt "ocean waves crashing on rocks at sunset, slow motion"
+
+### `grok_structured_output`
+
+Get a JSON-schema-enforced response from Grok.
+
+**Inputs:**
+- `prompt` (string, required) — what you want Grok to produce
+- `schema` (object or stringified JSON, required) — JSON Schema describing the expected response shape
+- `system` (string, optional) — system prompt
+- `model` (string, optional) — model override (default: `grok-4.3`)
+
+**Returns:** JSON matching the provided schema.
+
+**Example call:**
+> use grok_structured_output to extract people, companies, and locations from this text. Schema: { type: "object", properties: { people: { type: "array", items: { type: "string" } }, companies: { ... }, locations: { ... } }, required: ["people", "companies", "locations"] }
+
+### `grok_reasoning`
+
+Use Grok's reasoning mode for deep analysis.
+
+**Inputs:**
+- `prompt` (string, required) — the question or problem
+- `effort` (`"low"` | `"medium"` | `"high"`, optional) — reasoning depth (default: medium)
+- `system` (string, optional) — system prompt
+- `model` (string, optional) — model override (default: `grok-4.3`)
+
+**Example call:**
+> use grok_reasoning with effort=high to analyze whether building a personal MCP server is worth the maintenance cost vs using existing connectors
+
 ---
 
 ## Local development
@@ -220,7 +341,11 @@ Cloudflare Worker (this repo)
         │
         │  Bearer auth via Worker secret
         ▼
-xAI Grok API (api.x.ai/v1/responses)
+xAI Grok API (api.x.ai/v1)
+  ├── /responses       — chat, search, vision, structured, reasoning
+  ├── /images/generations — image gen
+  ├── /images/edits    — image edit
+  └── /videos/generations — video gen
 ```
 
 - **Transport:** MCP over Streamable HTTP at `/mcp`
@@ -247,6 +372,8 @@ server.tool(
   }
 );
 ```
+
+All tools share a single `xaiFetch(env, path, body)` helper for hitting the xAI API. To add a new tool wrapping a different xAI endpoint, just pass the endpoint path and request body to `xaiFetch`.
 
 Add a new tool, run `npm run dev` to test locally, then `npx wrangler deploy` to ship.
 
@@ -287,6 +414,14 @@ The longer version — the architecture, the trade-offs, the templates for build
 
 ---
 
+## Changelog
+
+**v1.1.0** — Added 6 new tools: `grok_image_generate`, `grok_image_understand`, `grok_image_edit`, `grok_video_generate`, `grok_structured_output`, `grok_reasoning`. Refactored to a shared `xaiFetch` helper. Server now exposes Grok's full surface area.
+
+**v1.0.0** — Initial release. Three tools: `x_search`, `grok_web_search`, `grok_chat`. Stateless MCP server on Cloudflare Workers.
+
+---
+
 ## License
 
 MIT. Fork it, ship it, change it, sell it.
@@ -298,5 +433,6 @@ MIT. Fork it, ship it, change it, sell it.
 - [auny-ai/claude-os](https://github.com/auny-ai/claude-os) — the multi-AI operating system this is part of
 - [Cloudflare Agents SDK docs](https://developers.cloudflare.com/agents/) — the SDK underneath this
 - [Model Context Protocol](https://modelcontextprotocol.io) — the standard this implements
+- [xAI API docs](https://docs.x.ai/) — the underlying API this wraps
 
 If you build something interesting on top of this, open an issue or [tag me on X](https://x.com/AunySillyMe). 🧡
