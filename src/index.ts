@@ -1,6 +1,7 @@
 import { createMcpHandler } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { handleOAuthRoutes, gateMcp } from "./auth";
 
 /**
  * grok-mcp-server
@@ -22,6 +23,10 @@ import { z } from "zod";
 
 export interface Env {
   XAI_API_KEY: string;
+  /** Gates the inbound /mcp endpoint (src/auth.ts). Fails closed when unset. */
+  AUTH_SECRET?: string;
+  /** Deliberate opt-out: set to "true" to run /mcp unauthenticated on purpose. */
+  MCP_PUBLIC?: string;
 }
 
 const BASE_URL = "https://api.x.ai/v1";
@@ -82,7 +87,7 @@ function extractVideoUrl(data: any): string | null {
 }
 
 function buildServer(env: Env): McpServer {
-  const server = new McpServer({ name: "grok", version: "1.1.0" });
+  const server = new McpServer({ name: "grok", version: "1.2.0" });
 
   // ═══════════════════════════════════════════════════════════════════
   // SEARCH + CHAT TOOLS (v1.0)
@@ -269,7 +274,7 @@ function buildServer(env: Env): McpServer {
     {
       prompt: z.string().describe("What you want Grok to produce"),
       schema: z
-        .union([z.string(), z.record(z.any())])
+        .union([z.string(), z.record(z.string(), z.any())])
         .describe("JSON Schema (as object or stringified JSON) describing the expected response shape"),
       system: z.string().optional().describe("Optional system prompt"),
       model: z.string().optional().describe(`Optional model override (default: ${DEFAULT_TEXT_MODEL})`),
@@ -335,13 +340,19 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
+    // OAuth 2.0 / PKCE routes (discovery, register, authorize, confirm, token).
+    // All unauthenticated by design — they issue the credential, they don't
+    // consume one. Checked before anything else.
+    const oauthResponse = await handleOAuthRoutes(request, url, env);
+    if (oauthResponse) return oauthResponse;
+
     // Health / info endpoint
     if (url.pathname === "/") {
       return new Response(
         JSON.stringify(
           {
             name: "grok-mcp-server",
-            version: "1.1.0",
+            version: "1.2.0",
             mcp_endpoint: `${url.origin}/mcp`,
             tools: [
               "x_search",
@@ -365,6 +376,8 @@ export default {
 
     // MCP endpoint — stateless: new server per request
     if (url.pathname === "/mcp" || url.pathname.startsWith("/mcp/")) {
+      const denied = await gateMcp(request, env);
+      if (denied) return denied;
       const server = buildServer(env);
       const handler = createMcpHandler(server, { route: "/mcp" });
       return handler(request, env, ctx);

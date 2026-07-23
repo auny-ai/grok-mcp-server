@@ -1,0 +1,66 @@
+{
+  "$comment": "Machine-readable install manifest. An agent reads this to install the server without asking anything it could have looked up. Keep it in sync with wrangler.jsonc — this file is the source of truth for AGENTS.md and verify.sh.",
+  "name": "grok-mcp-server",
+  "description": "Remote MCP server exposing xAI Grok's full capability surface: live X search, web search, chat, reasoning, structured output, image generation/understanding/editing, and video generation.",
+  "runtime": "cloudflare-worker",
+  "transport": "http",
+  "endpoint": "https://<your-worker>.<your-subdomain>.workers.dev/mcp",
+  "single_tenant": true,
+
+  "prerequisites": {
+    "node": ">=18",
+    "wrangler": ">=4",
+    "accounts": [
+      "Cloudflare (Workers free tier is sufficient)",
+      "An xAI API account with a funded/billed key (console.x.ai)"
+    ]
+  },
+
+  "secrets": [
+    {
+      "name": "XAI_API_KEY",
+      "required": true,
+      "set_with": "wrangler secret put XAI_API_KEY",
+      "how": "console.x.ai -> API Keys -> Create API Key. Requires a funded xAI account for anything beyond minimal free usage.",
+      "note": "Outbound only — used by this server to call api.x.ai on your behalf."
+    },
+    {
+      "name": "AUTH_SECRET",
+      "required": true,
+      "set_with": "printf '%s' \"$VALUE\" | wrangler secret put AUTH_SECRET",
+      "how": "generate your own: openssl rand -hex 32",
+      "note": "Inbound auth gate (src/auth.ts), dual-route. Path A: static bearer 'Authorization: Bearer <AUTH_SECRET>'. Path B: OAuth/PKCE for the claude.ai connector (stateless HMAC tokens, no KV). This single secret backs both paths. Fails closed (503) when unset. Set without a trailing newline, per the set_with command above."
+    },
+    {
+      "name": "MCP_PUBLIC",
+      "required": false,
+      "set_with": "wrangler secret put MCP_PUBLIC",
+      "how": "Set to \"true\" only if you deliberately want the server to run open.",
+      "note": "Escape hatch that disables the inbound auth gate on purpose. Leave unset in normal operation."
+    }
+  ],
+
+  "bindings": [],
+  "crons": [],
+
+  "verify": "./verify.sh",
+  "expected_tools": 9,
+
+  "tools": [
+    "x_search",
+    "grok_web_search",
+    "grok_chat",
+    "grok_reasoning",
+    "grok_structured_output",
+    "grok_image_generate",
+    "grok_image_understand",
+    "grok_image_edit",
+    "grok_video_generate"
+  ],
+
+  "default_models": {
+    "text": "grok-4.3",
+    "image": "grok-imagine-image-quality",
+    "video": "grok-imagine-video"
+  }
+}

@@ -96,7 +96,7 @@ This is a general-purpose Grok wrapper that any MCP client can hit. The use case
 ### For creators
 
 - **Trending content radar** — daily, autonomous research on what's going viral in your niche.
-- **Quote-tweet opportunity finder** — surface high-engagement posts in your pillars worth responding to.
+- **Quote-tweet opportunity finder** — surface high-engagement posts in your topics worth responding to.
 - **Audience research** — see what your target audience actually talks about, not what you assume they care about.
 - **Source pulls for any output** — articles, threads, presentations — without context-switching to a browser.
 - **Visual brand workflows.** Generate banner art, social cards, post thumbnails, and video clips in one workflow without leaving Claude.
@@ -130,7 +130,7 @@ This repo doesn't bill you for anything. You're deploying your own copy of the s
 
 ---
 
-## Install in 4 commands
+## Install in 5 commands
 
 ```bash
 git clone https://github.com/auny-ai/grok-mcp-server.git
@@ -141,11 +141,14 @@ npx wrangler login
 
 (`wrangler login` opens a browser tab — authorize Cloudflare access once.)
 
-Then set your xAI key as a Worker secret and deploy:
+Set your xAI key and generate your own auth secret as Worker secrets, then deploy:
 
 ```bash
 npx wrangler secret put XAI_API_KEY
 # (paste your xai-... key when prompted)
+
+printf '%s' "$(openssl rand -hex 32)" | npx wrangler secret put AUTH_SECRET
+# generates and sets your own random secret — this gates the endpoint below
 
 npx wrangler deploy
 ```
@@ -157,41 +160,64 @@ Deployed grok-mcp-server triggers
   https://grok-mcp-server.<your-account>.workers.dev
 ```
 
-Done. Your Worker is live.
+Done. Your Worker is live — and gated. Unlike v1, the `/mcp` endpoint now
+fails closed: it refuses every request (503) until `AUTH_SECRET` is set, and
+401s any request that doesn't present a valid credential. See
+[`AGENTS.md`](./AGENTS.md) for the full install contract and
+[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for how the auth gate works.
 
-Sanity check:
+Verify both auth paths and the tool count in one shot:
 
 ```bash
-curl https://grok-mcp-server.<your-account>.workers.dev/
+AUTH_SECRET=<the secret you generated> \
+MCP_URL=https://grok-mcp-server.<your-account>.workers.dev \
+./verify.sh
 ```
 
-Should return JSON listing the nine tools.
+Should end in `PASS`.
 
 ---
 
 ## Connect to Claude
+
+The endpoint is gated behind `AUTH_SECRET`. There are two ways to authenticate,
+matching the two client shapes:
 
 ### In Claude.ai (Routines, Projects, custom integrations)
 
 1. Settings → Connectors → **Add custom connector**
 2. Name: `Grok`
 3. URL: `https://grok-mcp-server.<your-account>.workers.dev/mcp`
-4. Save
+4. Save, then **Connect** — this triggers a one-click OAuth/PKCE handshake
+   against `/oauth/authorize` and `/oauth/token`. You never paste the raw
+   secret into claude.ai; the connector receives a signed, expiring token.
 
 The nine tools are now available to any chat or Routine where you enable the Grok connector.
 
 ### In Claude Desktop / Claude Code
 
-Add to your MCP config file:
+These are headless clients, so they use the static-bearer path directly. Add
+to your MCP config file:
 
 ```json
 {
   "mcpServers": {
     "grok": {
-      "url": "https://grok-mcp-server.<your-account>.workers.dev/mcp"
+      "url": "https://grok-mcp-server.<your-account>.workers.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer <your AUTH_SECRET>"
+      }
     }
   }
 }
+```
+
+Or with the Claude Code CLI:
+
+```bash
+claude mcp add grok --transport http \
+  https://grok-mcp-server.<your-account>.workers.dev/mcp \
+  --header "Authorization: Bearer <your AUTH_SECRET>"
 ```
 
 Restart your Claude client and the tools become available.
@@ -318,9 +344,11 @@ Use Grok's reasoning mode for deep analysis.
 
 For testing changes before deploying:
 
-1. Create a `.dev.vars` file (gitignored) in the repo root:
+1. Copy `.env.example` to `.dev.vars` (gitignored) in the repo root and fill
+   in your own values:
    ```
    XAI_API_KEY="xai-..."
+   AUTH_SECRET="<output of: openssl rand -hex 32>"
    ```
 2. Run the dev server:
    ```bash
@@ -335,9 +363,10 @@ For testing changes before deploying:
 ```
 MCP client (Claude / Cursor / anything)
         │
-        │  Streamable HTTP MCP
+        │  Streamable HTTP MCP, Bearer auth (static secret or OAuth token)
         ▼
 Cloudflare Worker (this repo)
+        │  gateMcp() — fails closed without AUTH_SECRET
         │
         │  Bearer auth via Worker secret
         ▼
@@ -351,9 +380,14 @@ xAI Grok API (api.x.ai/v1)
 - **Transport:** MCP over Streamable HTTP at `/mcp`
 - **State:** stateless per request, no Durable Objects, no session memory
 - **Auth (server → xAI):** Bearer token via `XAI_API_KEY` Worker secret
-- **Auth (client → server):** none by default (the Worker URL itself is the only secret)
+- **Auth (client → server):** gated by `AUTH_SECRET` (`src/auth.ts`), fail-closed.
+  Two routes: a static bearer for headless clients (Claude Code), and OAuth
+  2.0 + PKCE with stateless HMAC-signed tokens for the claude.ai connector.
+  No KV, no database — see [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
+  for the full request-routing and token-verification walkthrough.
 
-If you want to add auth in front of the Worker (e.g. require a bearer token from clients), it's ~5 lines in `src/index.ts` — check the `fetch` handler.
+See [`docs/RUNBOOK.md`](./docs/RUNBOOK.md) for rotating secrets, redeploying,
+and common failure modes.
 
 ---
 
@@ -415,6 +449,12 @@ The longer version — the architecture, the trade-offs, the templates for build
 ---
 
 ## Changelog
+
+**v1.2.0** — Added fail-closed dual-route inbound auth (`src/auth.ts`): a
+static-bearer path for headless clients and self-contained OAuth 2.0 + PKCE
+for the claude.ai connector, both backed by one `AUTH_SECRET`. No KV, no
+database — stateless HMAC-signed tokens. Added `verify.sh`, `mcp.json`,
+`AGENTS.md`, `.env.example`, and `docs/`.
 
 **v1.1.0** — Added 6 new tools: `grok_image_generate`, `grok_image_understand`, `grok_image_edit`, `grok_video_generate`, `grok_structured_output`, `grok_reasoning`. Refactored to a shared `xaiFetch` helper. Server now exposes Grok's full surface area.
 

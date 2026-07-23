@@ -1,6 +1,9 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "grok-mcp-hosted",
+  // Default deploy name. Each Cloudflare account has its own namespace, so
+  // this won't collide with anyone else's deploy. Rename before deploying if
+  // you want a different subdomain segment.
+  "name": "grok-mcp-server",
   "main": "src/index.ts",
   "compatibility_date": "2026-05-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -17,4 +20,21 @@
   "observability": {
     "enabled": true
   }
+
+  // ── Secrets (set with `wrangler secret put <NAME>`, never committed) ──
+  //
+  // XAI_API_KEY   required. Your xAI API key (console.x.ai). Outbound only —
+  //                used to call api.x.ai on the server's behalf.
+  //
+  // AUTH_SECRET    required. Gates the inbound /mcp endpoint (src/auth.ts).
+  //                Fails CLOSED: if unset, every /mcp request gets a 503,
+  //                never open access. Backs both auth paths (static bearer
+  //                and OAuth/PKCE token signing). Generate with
+  //                `openssl rand -hex 32` and set it without a trailing
+  //                newline:
+  //                  printf '%s' "$(openssl rand -hex 32)" | wrangler secret put AUTH_SECRET
+  //
+  // MCP_PUBLIC     optional. Set to the literal string "true" only if you
+  //                deliberately want /mcp to run unauthenticated. Leave unset
+  //                in normal operation.
 }
