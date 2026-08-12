@@ -17,14 +17,10 @@ Cloudflare Worker (this repo)
         │  gateMcp() — fail-closed inbound auth check
         ▼
 buildServer(env) — fresh McpServer per request
-        │
-        │  Bearer XAI_API_KEY (outbound, server → xAI)
-        ▼
-xAI Grok API (api.x.ai/v1)
-  ├── /responses            — chat, search, vision, structured output, reasoning
-  ├── /images/generations    — image generation
-  ├── /images/edits          — image editing
-  └── /videos/generations    — video generation
+        ├── 8 Grok tools + default x_search
+        │     Bearer XAI_API_KEY → xAI Grok API (api.x.ai/v1)
+        └── optional x_search route
+              x-api-key: XQUIK_API_KEY → Xquik public tweet search
 ```
 
 ## Request routing (`src/index.ts` fetch handler)
@@ -67,13 +63,16 @@ self-verifying via HMAC-SHA256 keyed on `AUTH_SECRET`. Revoking access means
 rotating `AUTH_SECRET`, which invalidates every previously issued token at
 once.
 
-## Outbound calls (server → xAI)
+## Outbound calls
 
-All nine tools funnel through a single `xaiFetch(env, path, body)` helper in
-`src/index.ts` that attaches `Authorization: Bearer ${env.XAI_API_KEY}` and
-posts JSON to `api.x.ai/v1<path>`. Adding a tool that wraps a new xAI endpoint
-means calling this helper with a new path and body shape — no new
-plumbing required.
+Eight Grok-only tools and the default `x_search` route use
+`xaiFetch(env, path, body)`. It attaches `Authorization: Bearer
+${env.XAI_API_KEY}` and posts JSON to `api.x.ai/v1<path>`.
+
+When `X_SEARCH_BACKEND=xquik`, only `x_search` uses `xquikSearch`. That helper
+sends a bounded GET request to the public Xquik tweet-search endpoint with
+`XQUIK_API_KEY`, a 20-result limit, and the requested query. Invalid backend
+values or missing Xquik credentials fail the tool instead of falling back.
 
 ## Statelessness
 
@@ -81,7 +80,7 @@ There is deliberately no persistence layer. Each `/mcp` request:
 
 1. Passes `gateMcp()`.
 2. Builds a brand-new `McpServer` via `buildServer(env)`.
-3. Executes exactly one tool call against xAI.
+3. Executes exactly one tool call against xAI or the selected Xquik search route.
 4. Returns the result.
 
 This means restarts, redeploys, and concurrent requests never interact with

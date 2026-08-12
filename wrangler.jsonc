@@ -26,6 +26,12 @@
   // XAI_API_KEY   required. Your xAI API key (console.x.ai). Outbound only —
   //                used to call api.x.ai on the server's behalf.
   //
+  // XQUIK_API_KEY optional. Your Xquik API key. Used only by x_search when
+  //                X_SEARCH_BACKEND is set to "xquik".
+  //
+  // X_SEARCH_BACKEND optional. Leave unset for xAI. Set to "xquik" to route
+  //                only x_search through the structured Xquik search API.
+  //
   // AUTH_SECRET    required. Gates the inbound /mcp endpoint (src/auth.ts).
   //                Fails CLOSED: if unset, every /mcp request gets a 503,
   //                never open access. Backs both auth paths (static bearer

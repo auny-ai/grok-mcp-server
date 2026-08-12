@@ -13,7 +13,8 @@ reuse a value you've seen elsewhere.
 ## What this is
 
 A single-tenant MCP server wrapping xAI Grok, running as a Cloudflare Worker.
-Nine tools. Stateless — no Durable Objects, no KV, no session memory.
+Nine tools. `x_search` can optionally use Xquik for structured public X data.
+Stateless — no Durable Objects, no KV, no session memory.
 
 ---
 
@@ -27,6 +28,9 @@ Nine tools. Stateless — no Durable Objects, no KV, no session memory.
 
 Stop and ask the operator if any are missing. Do not create accounts on their
 behalf.
+
+An Xquik account is optional. It is needed only when the operator selects the
+Xquik `x_search` backend.
 
 ---
 
@@ -50,6 +54,18 @@ wrangler secret put XAI_API_KEY
 
 printf '%s' "$(openssl rand -hex 32)" | wrangler secret put AUTH_SECRET
 ```
+
+To route only `x_search` through Xquik, set both optional values:
+
+```sh
+wrangler secret put XQUIK_API_KEY
+# paste your own Xquik API key when prompted
+
+printf '%s' 'xquik' | wrangler secret put X_SEARCH_BACKEND
+```
+
+Leave `X_SEARCH_BACKEND` unset to keep xAI as the default. The other eight
+tools always use `XAI_API_KEY`.
 
 `AUTH_SECRET` is required. It gates the inbound `/mcp` endpoint (`src/auth.ts`),
 dual-route: a static bearer (`Authorization: Bearer <AUTH_SECRET>`) for direct
@@ -142,6 +158,8 @@ clients and the connector's existing session alike. After any such change:
   wiring high-volume automation to `grok_image_generate` or
   `grok_video_generate`.
 - **Video generation is slow.** 20-60 seconds is normal, not a hang.
+- **Backend selection affects only `x_search`.** Invalid values fail that tool
+  instead of silently falling back. `xquik` also requires `XQUIK_API_KEY`.
 - **No worker name conflicts across accounts.** Each Cloudflare account has
   its own namespace, so keeping the default `grok-mcp-server` name in
   `wrangler.jsonc` is safe.

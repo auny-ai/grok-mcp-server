@@ -23,6 +23,10 @@ import { handleOAuthRoutes, gateMcp } from "./auth";
 
 export interface Env {
   XAI_API_KEY: string;
+  /** Selects the provider for x_search. Defaults to xai. */
+  X_SEARCH_BACKEND?: string;
+  /** Required only when X_SEARCH_BACKEND is xquik. */
+  XQUIK_API_KEY?: string;
   /** Gates the inbound /mcp endpoint (src/auth.ts). Fails closed when unset. */
   AUTH_SECRET?: string;
   /** Deliberate opt-out: set to "true" to run /mcp unauthenticated on purpose. */
@@ -30,9 +34,65 @@ export interface Env {
 }
 
 const BASE_URL = "https://api.x.ai/v1";
+const XQUIK_SEARCH_URL = "https://xquik.com/api/v1/x/tweets/search";
 const DEFAULT_TEXT_MODEL = "grok-4.3";
 const DEFAULT_IMAGE_MODEL = "grok-imagine-image-quality";
 const DEFAULT_VIDEO_MODEL = "grok-imagine-video";
+
+type XSearchBackend = "xai" | "xquik";
+
+function getXSearchBackend(env: Env): XSearchBackend {
+  const configured = env.X_SEARCH_BACKEND?.trim().toLowerCase();
+  if (!configured || configured === "xai" || configured === "grok") {
+    return "xai";
+  }
+  if (configured === "xquik") {
+    return "xquik";
+  }
+  throw new Error('Unsupported X_SEARCH_BACKEND. Use "xai", "grok", or "xquik".');
+}
+
+async function xquikSearch(
+  env: Env,
+  query: string,
+  context?: string,
+): Promise<string> {
+  const apiKey = env.XQUIK_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error(
+      "Set XQUIK_API_KEY before selecting X_SEARCH_BACKEND=xquik.",
+    );
+  }
+
+  const scopedQuery = context?.trim() ? `${query} ${context.trim()}` : query;
+  const url = new URL(XQUIK_SEARCH_URL);
+  url.searchParams.set("q", scopedQuery);
+  url.searchParams.set("queryType", "Latest");
+  url.searchParams.set("limit", "20");
+
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      "x-api-key": apiKey,
+    },
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Xquik API error ${response.status}: ${errorText}`);
+  }
+
+  const data: unknown = await response.json();
+  return JSON.stringify(
+    {
+      source: "xquik",
+      query,
+      ...(context?.trim() ? { context: context.trim() } : {}),
+      results: data,
+    },
+    null,
+    2,
+  );
+}
 
 // ─── Shared xAI fetch helper ─────────────────────────────────────────
 async function xaiFetch(
@@ -96,12 +156,17 @@ function buildServer(env: Env): McpServer {
   // ─── x_search ─────────────────────────────────────────────────────
   server.tool(
     "x_search",
-    "Search X (Twitter) for recent and relevant posts via xAI's native X search. Returns author handles, post content, and engagement signals. Supports X advanced search operators like min_faves:N, filter:blue_verified, from:user, since:YYYY-MM-DD.",
+    "Search X (Twitter) for recent and relevant posts through the configured xAI or Xquik backend. Returns author handles, post content, and engagement signals. Supports X advanced search operators like min_faves:N, filter:blue_verified, from:user, since:YYYY-MM-DD.",
     {
       query: z.string().describe("What to search for on X. Supports X advanced search operators."),
       context: z.string().optional().describe("Optional focus or filter for results"),
     },
     async ({ query, context }) => {
+      if (getXSearchBackend(env) === "xquik") {
+        return {
+          content: [{ type: "text", text: await xquikSearch(env, query, context) }],
+        };
+      }
       const input = context
         ? `Search X for posts about: "${query}"\n\nFocus on: ${context}\n\nReturn recent posts with author, content, and engagement signals.`
         : `Search X for the most recent and relevant posts about: "${query}". Include author handles, post content, and notable engagement.`;
