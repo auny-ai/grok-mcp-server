@@ -16,6 +16,17 @@ you've already followed `AGENTS.md` for initial setup.
    directly, so also run one real tool call, e.g. `grok_chat`, from a
    connected client).
 
+## Rotate your optional Xquik key
+
+Use this procedure only when `X_SEARCH_BACKEND=xquik`.
+
+1. Create a replacement key in your Xquik account before revoking the old one.
+2. Run `wrangler secret put XQUIK_API_KEY` and paste the replacement key.
+3. Run `wrangler deploy`.
+4. Call `x_search` once and confirm it returns structured results with
+   `source: "xquik"`.
+5. Revoke the old key.
+
 ## Rotate AUTH_SECRET
 
 Rotating this invalidates **every** previously issued credential at once —
@@ -62,4 +73,7 @@ Symptom: a previously working client starts getting 401s.
 | `verify.sh` PKCE step fails (`B: wrong PKCE rejected` shows FAIL) | Code path bug after a local edit to `src/auth.ts` | Do not deploy; PKCE rejection is the only thing standing between a stolen `code` and a valid token |
 | Tool call errors with `xAI API error 401` | `XAI_API_KEY` invalid, expired, or unset | Rotate the key (see above) |
 | Tool call errors with `xAI API error 429` | Rate limited or hit an xAI usage cap | Check console.x.ai usage/billing |
+| `x_search` reports an unsupported backend | `X_SEARCH_BACKEND` has an invalid value | Leave it unset for xAI, or set it to `xquik` |
+| `x_search` asks for `XQUIK_API_KEY` | The Xquik route is selected without its credential | Set the key, or remove `X_SEARCH_BACKEND` to restore xAI |
+| `x_search` returns an Xquik API 401 or 429 | The optional Xquik key is invalid or its account is rate limited | Rotate the key or check the Xquik account, then retry |
 | Image/video tool call times out or is very slow | Normal for video (20-60s); check xAI status page if image is also slow | Retry; consider raising client-side timeout for `grok_video_generate` |

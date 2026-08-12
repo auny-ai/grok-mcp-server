@@ -12,13 +12,13 @@ Built as part of [auny-ai/claude-os](https://github.com/auny-ai/claude-os) — a
 
 ## What it does
 
-Nine tools, all wrapping xAI's API. Each tool is general-purpose — the use cases below are just examples of what's possible.
+Nine tools. Eight always use xAI. `x_search` uses xAI by default and can use Xquik as an optional structured X/Twitter backend.
 
 ### Search + chat
 
 #### `x_search` — Real-time X (Twitter) data
 
-Searches X via xAI's native x_search backend. Returns posts with author handles, follower counts, engagement metrics (likes, retweets, replies, views), timestamps, embedded media, and quote-tweet context.
+Searches X via xAI's native `x_search` backend by default. Operators can select Xquik for structured public post results without changing the MCP tool contract.
 
 Supports the full X advanced search operator set: `min_faves:N`, `min_retweets:N`, `filter:blue_verified`, `filter:verified`, `from:user`, `lang:en`, `since:YYYY-MM-DD`, and the rest.
 
@@ -125,6 +125,7 @@ This is a general-purpose Grok wrapper that any MCP client can hit. The use case
 This repo doesn't bill you for anything. You're deploying your own copy of the server, paying xAI directly for Grok usage, and paying Cloudflare nothing for typical use.
 
 - **xAI**: you pay xAI for Grok API calls, billed to whatever payment method is on your xAI account ([console.x.ai](https://console.x.ai/)). Image and video generation are more expensive than text — check pricing before automating high-volume creative workflows.
+- **Xquik (optional)**: selecting the Xquik backend for `x_search` uses your own Xquik API key and account. The other eight tools still use xAI.
 - **Cloudflare**: Workers free tier = 100k requests/day, more than you'll hit
 - **Me**: zero — no telemetry, no proxying, no relay. The code runs on your account, your key, your bill.
 
@@ -152,6 +153,15 @@ printf '%s' "$(openssl rand -hex 32)" | npx wrangler secret put AUTH_SECRET
 
 npx wrangler deploy
 ```
+
+To route only `x_search` through Xquik, set 2 additional Worker secrets before deployment:
+
+```bash
+npx wrangler secret put XQUIK_API_KEY
+printf '%s' 'xquik' | npx wrangler secret put X_SEARCH_BACKEND
+```
+
+Leave `X_SEARCH_BACKEND` unset to keep the default xAI route. Xquik is an independent third-party service. Not affiliated with X Corp. "Twitter" and "X" are trademarks of X Corp.
 
 You'll see something like:
 
@@ -228,7 +238,7 @@ Restart your Claude client and the tools become available.
 
 ### `x_search`
 
-Search X (Twitter) via xAI's native X search tool.
+Search X (Twitter) through the configured backend. The default xAI route returns Grok's synthesized response. The optional Xquik route returns structured public search results as JSON.
 
 **Inputs:**
 - `query` (string, required) — what to search for
@@ -367,19 +377,13 @@ MCP client (Claude / Cursor / anything)
         ▼
 Cloudflare Worker (this repo)
         │  gateMcp() — fails closed without AUTH_SECRET
-        │
-        │  Bearer auth via Worker secret
-        ▼
-xAI Grok API (api.x.ai/v1)
-  ├── /responses       — chat, search, vision, structured, reasoning
-  ├── /images/generations — image gen
-  ├── /images/edits    — image edit
-  └── /videos/generations — video gen
+        ├── 8 Grok tools + default x_search → xAI Grok API
+        └── optional x_search → Xquik public tweet search
 ```
 
 - **Transport:** MCP over Streamable HTTP at `/mcp`
 - **State:** stateless per request, no Durable Objects, no session memory
-- **Auth (server → xAI):** Bearer token via `XAI_API_KEY` Worker secret
+- **Auth (server → providers):** `XAI_API_KEY` remains required for Grok tools. The optional Xquik `x_search` route uses `XQUIK_API_KEY`.
 - **Auth (client → server):** gated by `AUTH_SECRET` (`src/auth.ts`), fail-closed.
   Two routes: a static bearer for headless clients (Claude Code), and OAuth
   2.0 + PKCE with stateless HMAC-signed tokens for the claude.ai connector.
@@ -407,7 +411,7 @@ server.tool(
 );
 ```
 
-All tools share a single `xaiFetch(env, path, body)` helper for hitting the xAI API. To add a new tool wrapping a different xAI endpoint, just pass the endpoint path and request body to `xaiFetch`.
+The 8 Grok-only tools share `xaiFetch(env, path, body)`. `x_search` selects either that helper or the bounded `xquikSearch` helper from `X_SEARCH_BACKEND`.
 
 Add a new tool, run `npm run dev` to test locally, then `npx wrangler deploy` to ship.
 

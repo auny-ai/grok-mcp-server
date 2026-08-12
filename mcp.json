@@ -1,7 +1,7 @@
 {
   "$comment": "Machine-readable install manifest. An agent reads this to install the server without asking anything it could have looked up. Keep it in sync with wrangler.jsonc — this file is the source of truth for AGENTS.md and verify.sh.",
   "name": "grok-mcp-server",
-  "description": "Remote MCP server exposing xAI Grok's full capability surface: live X search, web search, chat, reasoning, structured output, image generation/understanding/editing, and video generation.",
+  "description": "Remote MCP server exposing xAI Grok's full capability surface, with an optional Xquik backend for the existing x_search tool.",
   "runtime": "cloudflare-worker",
   "transport": "http",
   "endpoint": "https://<your-worker>.<your-subdomain>.workers.dev/mcp",
@@ -12,7 +12,8 @@
     "wrangler": ">=4",
     "accounts": [
       "Cloudflare (Workers free tier is sufficient)",
-      "An xAI API account with a funded/billed key (console.x.ai)"
+      "An xAI API account with a funded/billed key (console.x.ai)",
+      "Optional: an Xquik API account when X_SEARCH_BACKEND is xquik"
     ]
   },
 
@@ -23,6 +24,20 @@
       "set_with": "wrangler secret put XAI_API_KEY",
       "how": "console.x.ai -> API Keys -> Create API Key. Requires a funded xAI account for anything beyond minimal free usage.",
       "note": "Outbound only — used by this server to call api.x.ai on your behalf."
+    },
+    {
+      "name": "XQUIK_API_KEY",
+      "required": false,
+      "set_with": "wrangler secret put XQUIK_API_KEY",
+      "how": "Create an API key in your own Xquik account. Required only when X_SEARCH_BACKEND is xquik.",
+      "note": "Outbound only. Used only by x_search when the optional Xquik backend is selected."
+    },
+    {
+      "name": "X_SEARCH_BACKEND",
+      "required": false,
+      "set_with": "printf '%s' 'xquik' | wrangler secret put X_SEARCH_BACKEND",
+      "how": "Set to xquik to route x_search through Xquik. Leave unset for the default xAI route.",
+      "note": "Accepted values are xai, grok, and xquik. This does not affect the other eight tools."
     },
     {
       "name": "AUTH_SECRET",
