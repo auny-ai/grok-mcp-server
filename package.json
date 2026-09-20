@@ -11,7 +11,7 @@
     "types": "wrangler types"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.10.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "agents": "^0.12.3",
     "zod": "^4.0.0"
   },
