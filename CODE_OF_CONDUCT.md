@@ -61,8 +61,8 @@ representative at an online or offline event.
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the maintainer through a private security advisory on this
 repository (Security tab, "Report a vulnerability"), visible only to the
-maintainer and to GitHub's own advisory collaborators and security managers,
-not the public.
+maintainer, anyone they add as an advisory collaborator, and the repository's
+security managers. It is not public.
 All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the

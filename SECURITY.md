@@ -14,7 +14,7 @@ Design and the auth flow: `docs/ARCHITECTURE.md`. `verify.sh` is the adversarial
 
 ## Reporting a vulnerability
 
-Use GitHub's private vulnerability reporting on this repository (Security tab, "Report a vulnerability"). That opens a private security advisory, visible only to the maintainer and to GitHub's own advisory collaborators and security managers, not the public. Please do not open a public issue for an auth bypass, a key leak, or anything that lets `/mcp` serve a request it should have refused.
+Use GitHub's private vulnerability reporting on this repository (Security tab, "Report a vulnerability"). That opens a private security advisory. It is not public, and access follows GitHub's advisory permissions: the maintainer, anyone they add as an advisory collaborator, and the repository's security managers. Please do not open a public issue for an auth bypass, a key leak, or anything that lets `/mcp` serve a request it should have refused.
 
 You will get an acknowledgement within 7 days and a fix or a reasoned "won't fix" within 30. Only the latest release receives fixes. Credit is given in the changelog unless you ask otherwise.
 
