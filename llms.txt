@@ -1,0 +1,17 @@
+# grok-mcp-server
+
+> Remote MCP server exposing xAI Grok tools (`x_search`, `grok_web_search`, `grok_chat`, image generation and editing, vision, video generation, structured output, reasoning) over a Cloudflare Worker. Deploy-your-own: each deployer holds their own xAI API key and `AUTH_SECRET`, and the `/mcp` endpoint is gated with dual-route auth, a static bearer for automation and OAuth 2.0/PKCE for the claude.ai connector.
+
+Deploy: TypeScript, Cloudflare Workers, Node 22. See the install contract in AGENTS.md and the setup steps in README.md.
+
+## Docs
+
+- [README](https://github.com/auny-ai/grok-mcp-server/blob/main/README.md): tools, setup, both auth paths
+- [AGENTS.md](https://github.com/auny-ai/grok-mcp-server/blob/main/AGENTS.md): install contract for an agent deploying this
+- [Architecture](https://github.com/auny-ai/grok-mcp-server/blob/main/docs/ARCHITECTURE.md)
+- [Runbook](https://github.com/auny-ai/grok-mcp-server/blob/main/docs/RUNBOOK.md)
+- [Changelog](https://github.com/auny-ai/grok-mcp-server/blob/main/CHANGELOG.md)
+
+## Optional
+
+- [Security policy](https://github.com/auny-ai/grok-mcp-server/blob/main/SECURITY.md)

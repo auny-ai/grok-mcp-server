@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security report (private)
+    url: https://github.com/auny-ai/grok-mcp-server/security/advisories/new
+    about: An auth bypass, a key leak, or anything that lets /mcp serve a request it should have refused. A private security advisory, not a public issue.
+  - name: Deploy and setup
+    url: https://github.com/auny-ai/grok-mcp-server/blob/main/README.md
+    about: Read before filing a "my deploy doesn't work" issue; this is a deploy-your-own template and most setup issues are a missing key or secret.

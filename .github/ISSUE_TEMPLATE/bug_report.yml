@@ -1,0 +1,41 @@
+name: Bug report
+description: A tool call, an auth path, or a deploy step behaved wrong. Request and response please.
+labels: [bug]
+body:
+  - type: input
+    id: tool
+    attributes:
+      label: Tool or endpoint
+      description: Which MCP tool, or which route (/mcp, /authorize, /token).
+      placeholder: grok_web_search
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what happened instead
+      description: Quote the request and the response. Redact your AUTH_SECRET and xAI key.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: The exact request (curl or MCP client config), with secrets redacted.
+      render: shell
+  - type: input
+    id: env
+    attributes:
+      label: Deployment
+      placeholder: Cloudflare Workers, wrangler 4.x, Node 22
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before filing
+      options:
+        - label: I searched open and closed issues.
+          required: true
+        - label: This report contains no key, token, AUTH_SECRET, or account id.
+          required: true
