@@ -59,8 +59,8 @@
   ],
 
   "default_models": {
-    "text": "grok-4.3",
-    "image": "grok-imagine-image-quality",
+    "text": "grok-4.6",
+    "image": "grok-imagine-image-2.0",
     "video": "grok-imagine-video"
   }
 }

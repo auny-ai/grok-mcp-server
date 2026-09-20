@@ -7,7 +7,9 @@ Design and the auth flow: `docs/ARCHITECTURE.md`. `verify.sh` is the adversarial
 ## Known limitations
 
 - This is a deploy-your-own template, not a shared hosted service. Each deployer holds their own xAI key and their own `AUTH_SECRET`; neither ships with this repo.
-- Authorization codes are stateless and signed, not stored server-side. The design cannot enforce single-use on a code without adding a Durable Object. The short code TTL is the mitigation: a replayed code has a narrow window to matter.
+- Access tokens are stateless and signed, not stored server-side, so there is no per-token revocation. Rotating `AUTH_SECRET` invalidates every issued token at once and is the only revocation.
+- Authorization codes ARE single-use, enforced by the `CodeLedger` Durable Object. They also expire two minutes after issue. Both are needed: the TTL bounds the window, the ledger stops a replay inside it.
+- `ALLOWED_REDIRECT_HOSTS` in `src/auth.ts` permits every path, query and port on each listed host. Adding a host you do not control is what makes that matter.
 - Endpoints in the docs and examples are placeholders; a deployer's live URL is their own.
 
 ## Reporting a vulnerability

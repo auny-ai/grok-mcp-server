@@ -4,7 +4,7 @@ A remote MCP server that gives any Claude (or any MCP-compatible AI) access to x
 
 Whether you're a developer building agents, an automation tinkerer wiring up workflows, or a creator who wants real-time data inside Claude — this is the same install.
 
-Hosted on your own Cloudflare account. 4 commands. Stateless. **9 tools.**
+Hosted on your own Cloudflare account. **9 tools.**
 
 Built as part of [auny-ai/claude-os](https://github.com/auny-ai/claude-os) — a multi-AI operating system being built in public. 🧡
 
@@ -130,7 +130,7 @@ This repo doesn't bill you for anything. You're deploying your own copy of the s
 
 ---
 
-## Install in 5 commands
+## Install
 
 ```bash
 git clone https://github.com/auny-ai/grok-mcp-server.git
@@ -148,7 +148,11 @@ npx wrangler secret put XAI_API_KEY
 # (paste your xai-... key when prompted)
 
 printf '%s' "$(openssl rand -hex 32)" | npx wrangler secret put AUTH_SECRET
-# generates and sets your own random secret — this gates the endpoint below
+# gates the /mcp endpoint. Headless clients present this directly as a Bearer token.
+
+printf '%s' "$(openssl rand -hex 32)" | npx wrangler secret put CONNECT_SECRET
+# authenticates YOU on the OAuth consent page. Save this one somewhere you can
+# read it back: you type it once per device when connecting claude.ai.
 
 npx wrangler deploy
 ```
@@ -160,9 +164,11 @@ Deployed grok-mcp-server triggers
   https://grok-mcp-server.<your-account>.workers.dev
 ```
 
-Done. Your Worker is live — and gated. Unlike v1, the `/mcp` endpoint now
-fails closed: it refuses every request (503) until `AUTH_SECRET` is set, and
-401s any request that doesn't present a valid credential. See
+Done. Your Worker is live and gated. The `/mcp` endpoint fails closed: it
+refuses every request (503) until `AUTH_SECRET` is set, and 401s any request
+that doesn't present a valid credential. The OAuth consent page fails closed
+too, and is disabled (503) until `CONNECT_SECRET` is set, so nobody who merely
+reaches `/oauth/authorize` can mint a token against your xAI key. See
 [`AGENTS.md`](./AGENTS.md) for the full install contract and
 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for how the auth gate works.
 
@@ -188,9 +194,18 @@ matching the two client shapes:
 1. Settings → Connectors → **Add custom connector**
 2. Name: `Grok`
 3. URL: `https://grok-mcp-server.<your-account>.workers.dev/mcp`
-4. Save, then **Connect** — this triggers a one-click OAuth/PKCE handshake
-   against `/oauth/authorize` and `/oauth/token`. You never paste the raw
-   secret into claude.ai; the connector receives a signed, expiring token.
+4. Save, then **Connect**. This opens the consent page. Type your
+   `CONNECT_SECRET` once, and the OAuth/PKCE handshake against
+   `/oauth/authorize` and `/oauth/token` completes. You never paste
+   `AUTH_SECRET` into claude.ai; the connector receives a signed, expiring
+   token instead.
+
+Codes are only ever delivered to an allowlisted host (`claude.ai`,
+`claude.com`, or `localhost` for development). Using a different MCP client?
+Add its host to `ALLOWED_REDIRECT_HOSTS` in
+[`src/auth.ts`](./src/auth.ts) and redeploy. Without that, the handshake
+refuses with a 400 rather than handing your authorization code to a host you
+did not name.
 
 The nine tools are now available to any chat or Routine where you enable the Grok connector.
 
@@ -254,7 +269,7 @@ Plain text Grok completion.
 **Inputs:**
 - `prompt` (string, required) — user prompt
 - `system` (string, optional) — system prompt
-- `model` (string, optional) — model override (default: `grok-4.3`)
+- `model` (string, optional) — model override (default: `grok-4.6`)
 
 ### `grok_image_generate`
 
@@ -263,7 +278,7 @@ Generate images from a text prompt.
 **Inputs:**
 - `prompt` (string, required) — description of the image
 - `n` (integer 1-4, optional) — number of variations (default: 1)
-- `model` (string, optional) — model override (default: `grok-imagine-image-quality`)
+- `model` (string, optional) — model override (default: `grok-imagine-image-2.0`)
 
 **Returns:** image URL(s). For multiple, returns a numbered list.
 
@@ -277,7 +292,7 @@ Analyze an image using Grok's vision capabilities.
 **Inputs:**
 - `image_url` (string, required) — URL of the image (jpg, jpeg, or png)
 - `prompt` (string, required) — what you want to know about it
-- `model` (string, optional) — model override (default: `grok-4.3`)
+- `model` (string, optional) — model override (default: `grok-4.6`)
 
 **Example call:**
 > use grok_image_understand on https://example.com/dashboard.png — what UX issues do you see?
@@ -289,7 +304,7 @@ Edit an existing image via a text prompt.
 **Inputs:**
 - `image_url` (string, required) — URL of the source image
 - `prompt` (string, required) — description of the edit
-- `model` (string, optional) — model override (default: `grok-imagine-image-quality`)
+- `model` (string, optional) — model override (default: `grok-imagine-image-2.0`)
 
 **Returns:** edited image URL.
 
@@ -318,7 +333,7 @@ Get a JSON-schema-enforced response from Grok.
 - `prompt` (string, required) — what you want Grok to produce
 - `schema` (object or stringified JSON, required) — JSON Schema describing the expected response shape
 - `system` (string, optional) — system prompt
-- `model` (string, optional) — model override (default: `grok-4.3`)
+- `model` (string, optional) — model override (default: `grok-4.6`)
 
 **Returns:** JSON matching the provided schema.
 
@@ -333,7 +348,7 @@ Use Grok's reasoning mode for deep analysis.
 - `prompt` (string, required) — the question or problem
 - `effort` (`"low"` | `"medium"` | `"high"`, optional) — reasoning depth (default: medium)
 - `system` (string, optional) — system prompt
-- `model` (string, optional) — model override (default: `grok-4.3`)
+- `model` (string, optional) — model override (default: `grok-4.6`)
 
 **Example call:**
 > use grok_reasoning with effort=high to analyze whether building a personal MCP server is worth the maintenance cost vs using existing connectors
@@ -378,7 +393,9 @@ xAI Grok API (api.x.ai/v1)
 ```
 
 - **Transport:** MCP over Streamable HTTP at `/mcp`
-- **State:** stateless per request, no Durable Objects, no session memory
+- **State:** stateless per request, apart from one Durable Object (`CodeLedger`)
+  that records spent OAuth authorization codes so none can be redeemed twice.
+  No session memory, no KV, no database.
 - **Auth (server → xAI):** Bearer token via `XAI_API_KEY` Worker secret
 - **Auth (client → server):** gated by `AUTH_SECRET` (`src/auth.ts`), fail-closed.
   Two routes: a static bearer for headless clients (Claude Code), and OAuth

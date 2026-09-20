@@ -13,7 +13,9 @@ reuse a value you've seen elsewhere.
 ## What this is
 
 A single-tenant MCP server wrapping xAI Grok, running as a Cloudflare Worker.
-Nine tools. Stateless — no Durable Objects, no KV, no session memory.
+Nine tools. Stateless per request, with one exception: the `CodeLedger`
+Durable Object records spent OAuth authorization codes so none can be
+redeemed twice. No KV, no session memory.
 
 ---
 

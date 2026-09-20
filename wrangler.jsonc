@@ -5,7 +5,7 @@
   // you want a different subdomain segment.
   "name": "grok-mcp-server",
   "main": "src/index.ts",
-  "compatibility_date": "2026-05-01",
+  "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
   "migrations": [
     {
@@ -15,8 +15,22 @@
     {
       "tag": "v2",
       "deleted_classes": ["GrokMCP"]
+    },
+    {
+      "tag": "v3",
+      "new_sqlite_classes": ["CodeLedger"]
     }
   ],
+  // Enforces single-use OAuth authorization codes. KV has no compare-and-set,
+  // so a get-then-put lets concurrent /oauth/token exchanges of one code all
+  // mint a token. A Durable Object handles one event at a time, so exactly one
+  // caller ever sees a first use. SQLite-backed Durable Objects are available
+  // on the Workers free plan.
+  "durable_objects": {
+    "bindings": [
+      { "name": "CODE_LEDGER", "class_name": "CodeLedger" }
+    ]
+  },
   "observability": {
     "enabled": true
   }
@@ -33,6 +47,15 @@
   //                `openssl rand -hex 32` and set it without a trailing
   //                newline:
   //                  printf '%s' "$(openssl rand -hex 32)" | wrangler secret put AUTH_SECRET
+  //
+  // CONNECT_SECRET required for the claude.ai connector handshake. Typed into
+  //                the consent page once per device. Without it, the consent
+  //                page authenticates nobody, and anyone who reaches
+  //                /oauth/authorize can mint a year-long token that spends YOUR
+  //                xAI account. Unset => the connector flow is disabled (503);
+  //                the static-bearer path is unaffected. Generate it the same
+  //                way as AUTH_SECRET:
+  //                  printf '%s' "$(openssl rand -hex 32)" | wrangler secret put CONNECT_SECRET
   //
   // MCP_PUBLIC     optional. Set to the literal string "true" only if you
   //                deliberately want /mcp to run unauthenticated. Leave unset

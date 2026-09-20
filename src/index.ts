@@ -25,13 +25,21 @@ export interface Env {
   XAI_API_KEY: string;
   /** Gates the inbound /mcp endpoint (src/auth.ts). Fails closed when unset. */
   AUTH_SECRET?: string;
+  /** Authenticates the OWNER on the OAuth consent page (src/auth.ts). Without
+   *  it the connector flow is disabled, because an unauthenticated consent page
+   *  lets anyone who reaches it mint a year-long token against your xAI key. */
+  CONNECT_SECRET?: string;
+  /** Durable Object namespace enforcing single-use authorization codes. */
+  CODE_LEDGER?: DurableObjectNamespace<import("./code-ledger").CodeLedger>;
   /** Deliberate opt-out: set to "true" to run /mcp unauthenticated on purpose. */
   MCP_PUBLIC?: string;
 }
 
 const BASE_URL = "https://api.x.ai/v1";
-const DEFAULT_TEXT_MODEL = "grok-4.3";
-const DEFAULT_IMAGE_MODEL = "grok-imagine-image-quality";
+const DEFAULT_TEXT_MODEL = "grok-4.6";
+// grok-imagine-image-quality retires 2026-11-02 in favour of this model,
+// which is cheaper at every resolution. Switched ahead of the deadline.
+const DEFAULT_IMAGE_MODEL = "grok-imagine-image-2.0";
 const DEFAULT_VIDEO_MODEL = "grok-imagine-video";
 
 // ─── Shared xAI fetch helper ─────────────────────────────────────────
@@ -386,3 +394,6 @@ export default {
     return new Response("Not Found", { status: 404 });
   },
 };
+
+// Re-exported so wrangler can bind the Durable Object class from the entrypoint.
+export { CodeLedger } from "./code-ledger.ts";

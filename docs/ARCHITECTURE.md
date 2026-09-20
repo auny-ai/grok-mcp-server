@@ -3,7 +3,7 @@
 ## Overview
 
 One Cloudflare Worker, one file that matters (`src/index.ts`) plus one auth
-module (`src/auth.ts`). No database, no KV, no Durable Objects, no session
+module (`src/auth.ts`). No database, no KV, no session
 state. Every `/mcp` request builds a fresh `McpServer` instance scoped to that
 request's `env`.
 
@@ -62,7 +62,7 @@ Both paths converge on `gateMcp()`, which:
   a validly signed, unexpired token.
 - Otherwise returns `null`, letting the request through to `buildServer(env)`.
 
-No KV, no database: tokens and authorization codes are stateless and
+No KV, no database: tokens are stateless and
 self-verifying via HMAC-SHA256 keyed on `AUTH_SECRET`. Revoking access means
 rotating `AUTH_SECRET`, which invalidates every previously issued token at
 once.
